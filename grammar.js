@@ -9,9 +9,9 @@ module.exports = grammar({
   rules: {
     // 1. 根规则：整个文件
     source_file: $ => seq(
-      optional($.preamble),
-      repeat1($.trace_line), // 一个文件包含多行追踪信息
-      optional($.summary)
+      field('preamble', optional($.preamble)),
+      repeat1($.trace_line),
+      field('summary', optional($.summary))
     ),
 
     // 2. 文件元数据
@@ -25,8 +25,8 @@ module.exports = grammar({
   
     compiling_line: $ => seq(
         'Compiling:',
-        $.identifier,
-        $.address,
+        field('name', $.identifier),
+        field('address', $.address),
         '\n'
     ),
 
@@ -34,18 +34,18 @@ module.exports = grammar({
       'Transaction successfully executed.',
       '\n',
       'Gas used:',
-      /\d+/,
+      field('gas_used', /\d+/),
       optional('\n')
     ),
 
     // 3. 行的结构
     trace_line: $ => seq(
-      optional($.prefix),
-      choice(
+      field('prefix', optional($.prefix)),
+      field('content', choice(
         $.call,
         $.return,
         $.event
-      ),
+      )),
       '\n'
     ),
 
@@ -53,71 +53,70 @@ module.exports = grammar({
 
     // 4. 行内容：调用、返回、事件
     call: $ => seq(
-      '[', $.gas, ']',
-      $.contract_path,
+      '[', field('gas', $.gas), ']',
+      field('contract', $.contract_path),
       '::',
-      $.function_name,
+      field('function', $.function_name),
       optional(
         seq(
           '(',
-          optional($.argument_list),
+          field('arguments', optional($.argument_list)),
           ')'
         )
       ),
-      optional($.call_type)
+      field('type', optional($.call_type))
     ),
 
     return: $ => seq(
       '←',
       optional(
         choice(
-          // 匹配原始格式，例如 ← [Return] 0x...
-          seq('[', $.return_type, ']', optional($.value_list)),
-          // 匹配直接跟着值的格式，例如 ← 0
-          $.value_list,
-          // 匹配特殊标记，例如 ← <unknown>
-          /<unknown>/
+          seq('[', field('type', $.return_type), ']', field('values', optional($.value_list))),
+          field('values', $.value_list),
+          field('unknown', /<unknown>/)
         )
       )
     ),
 
     _raw_event_body: $ => choice(
-      seq('topic', field('topic_id', /\d+/), ':', field('topic_value', $.hex_string)),
-      seq('data', ':', field('data_value', $.hex_string))
+        seq('topic', field('topic_id', /\d+/), ':', field('topic_value', $.hex_string)),
+        seq('data', ':', field('data_value', $.hex_string))
     ),
 
     event: $ => choice(
-      // 格式 1: 经典单行格式，例如 emit Transfer(...)
+      // 格式 1: emit Transfer(arg1, arg2)
       seq(
         'emit',
-        $.identifier,
+        field('name', $.identifier),
         '(',
-        optional($.argument_list),
+        field('arguments', optional($.argument_list)),
         ')'
       ),
-      // 格式 2: 新的多行原始日志格式
+      // 格式 2: emit topic 0: ...
       prec.right(
-              seq(
-                'emit',
-                $._raw_event_body, // Matches the first line, e.g., "topic 0: ..."
-                // Repeatedly match subsequent topic or data lines
-                repeat(
-                  seq(
-                    '\n', // Matches the preceding newline
-                    $.prefix, // Matches the prefix of the new line (e.g., '  ' or '│ ')
-                    $._raw_event_body // Matches the body of the new line
-                  )
-                )
-              )
+        seq(
+          'emit',
+          $._raw_event_body,
+          repeat(
+            seq(
+              '\n',
+              $.prefix,
+              $._raw_event_body
             )
+          )
+        )
+      )
     ),
 
     // 5. 调用的组成部分
     gas: $ => /\d+/,
     contract_path: $ => choice(
-        // 必须优先匹配更具体的规则
-        prec(2, seq($.identifier, ':', '[', $.address, ']')), 
-        prec(1, $.identifier)
+        prec(2, seq(
+            field('name', $.identifier),
+            ':', 
+            '[', field('address', $.address), ']'
+        )),
+        prec(1, field('name', $.identifier))
     ),
     function_name: $ => /[a-zA-Z0-9_]+/,
     call_type: $ => seq('[', choice('staticcall', 'delegatecall'), ']'),
@@ -140,9 +139,9 @@ module.exports = grammar({
     ),
 
     struct: $ => seq(
-      $.identifier,
+      field('name', $.identifier),
       '({',
-      optional($.argument_list),
+      field('fields', optional($.argument_list)),
       '})'
     ),
 
@@ -153,9 +152,9 @@ module.exports = grammar({
     )),
 
     labeled_address: $ => seq(
-      $.identifier,
+      field('label', $.identifier),
       ':',
-      '[', $.address, ']'
+      '[', field('address', $.address), ']'
     ),
 
     number_value: $ => seq(
