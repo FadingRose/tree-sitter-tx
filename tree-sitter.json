@@ -1,0 +1,39 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "tx",
+      "camelcase": "Tx",
+      "title": "Tx",
+      "scope": "source.tx",
+      "file-types": [
+        "tx"
+      ],
+      "injection-regex": "^tx$",
+      "class-name": "TreeSitterTx"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Parser for transaction-trace from foundry's cast run output format",
+    "authors": [
+      {
+        "name": "Kobayakawa Yuu",
+        "email": "kobayakawaami@gmail.com"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/FadingRose/tree-sitter-tx"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true,
+    "zig": false
+  }
+}
